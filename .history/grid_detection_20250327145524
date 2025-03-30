@@ -1,0 +1,59 @@
+import cv2
+import numpy as np
+
+def detect_grid_intersections(image_path):
+    # Read the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Ensure the image is loaded
+    if img is None:
+        print(f"Error: Could not read image {image_path}")
+        return None
+    
+    # Create a color version for drawing
+    color_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    
+    # Apply preprocessing
+    blurred = cv2.GaussianBlur(img, (5, 5), 0)
+    
+    # Detect grid lines using Harris corner detection
+    dst = cv2.cornerHarris(blurred, blockSize=2, ksize=3, k=0.04)
+    
+    # Dilate to mark the corners
+    dst = cv2.dilate(dst, None)
+    
+    # Threshold for an optimal value, it may vary depending on the image
+    threshold = 0.01 * dst.max()
+    
+    # Create a copy of the original image to draw on
+    intersection_img = color_img.copy()
+    
+    # Coordinates of intersections
+    intersections = []
+    
+    # Mark the corners
+    for i in range(dst.shape[0]):
+        for j in range(dst.shape[1]):
+            if dst[i,j] > threshold:
+                # Circle the intersection point
+                cv2.circle(intersection_img, (j, i), 5, (0, 255, 0), -1)
+                intersections.append((j, i))
+    
+    return intersection_img, intersections
+
+# Example usage (commented out as we can't actually run it)
+image_paths = ['social.png']
+for path in image_paths:
+    result, points = detect_grid_intersections(path)
+    if result is not None:
+        # Resize for viewing
+        resized = cv2.resize(result, None, fx=0.5, fy=0.5)
+        cv2.imshow(f'Grid Intersections - {path}', resized)
+        cv2.waitKey(0)
+
+cv2.destroyAllWindows()
+
+# Function to get intersection coordinates
+def get_intersection_coordinates(image_path):
+    _, intersections = detect_grid_intersections(image_path)
+    return intersections

@@ -1,0 +1,113 @@
+import cv2
+import numpy as np
+
+def detect_grid_intersections(image_path):
+    # Read the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Ensure the image is loaded
+    if img is None:
+        print(f"Error: Could not read image {image_path}")
+        return None
+    
+    # Apply preprocessing
+    blurred = cv2.GaussianBlur(img, (7, 7), 0)
+    
+    # Adaptive thresholding
+    thresh = cv2.adaptiveThreshold(
+        blurred, 
+        255, 
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY_INV, 
+        11,  # block size 
+        2    # constant subtracted from mean
+    )
+    
+    # Detect edges
+    edges = cv2.Canny(thresh, 30, 100, apertureSize=3)
+    
+    # Dilate edges to connect broken lines
+    kernel = np.ones((3,3), np.uint8)
+    dilated = cv2.dilate(edges, kernel, iterations=1)
+    
+    # Detect lines
+    lines = cv2.HoughLinesP(
+        dilated, 
+        rho=1,
+        theta=np.pi/180,
+        threshold=40,
+        minLineLength=30,
+        maxLineGap=5
+    )
+    
+    # Create a blank image for intersection detection
+    h, w = img.shape
+    intersection_grid = np.zeros((h, w), dtype=np.uint8)
+    
+    # Detect line intersections
+    if lines is not None:
+        # Convert lines to a list of line segments
+        line_segments = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            line_segments.append(((x1, y1), (x2, y2)))
+        
+        # Check intersections
+        for i in range(len(line_segments)):
+            for j in range(i+1, len(line_segments)):
+                # Get line segments
+                (x1, y1), (x2, y2) = line_segments[i]
+                (x3, y3), (x4, y4) = line_segments[j]
+                
+                # Calculate intersection
+                def line_intersection(line1, line2):
+                    xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
+                    ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1])
+
+                    def det(a, b):
+                        return a[0] * b[1] - a[1] * b[0]
+
+                    div = det(xdiff, ydiff)
+                    if div == 0:
+                        return None  # Lines are parallel
+
+                    d = (det(*line1), det(*line2))
+                    x = det(d, xdiff) / div
+                    y = det(d, ydiff) / div
+                    return (int(x), int(y))
+
+                # Check intersection
+                intersection = line_intersection(
+                    ((x1, y1), (x2, y2)), 
+                    ((x3, y3), (x4, y4))
+                )
+                
+                # Mark intersection point
+                if intersection:
+                    x, y = intersection
+                    # Only mark if within image bounds
+                    if 0 <= x < w and 0 <= y < h:
+                        # Mark a small area around the intersection
+                        intersection_grid[max(0, y-2):min(h, y+2), 
+                                         max(0, x-2):min(w, x+2)] = 255
+    
+    # Convert to binary (0 or 1)
+    binary_grid = (intersection_grid > 0).astype(np.uint8)
+    
+    return binary_grid
+
+# Example usage (commented out as we can't actually run it)
+image_paths = ['social.png']
+for path in image_paths:
+    result = detect_grid_intersections(path)
+    if result is not None:
+        # Optionally resize for viewing
+        resized = cv2.resize(result * 255, None, fx=0.5, fy=0.5)
+        cv2.imshow(f'Grid Intersections - {path}', resized)
+        cv2.waitKey(0)
+
+cv2.destroyAllWindows()
+
+# Optional: function to count intersections
+def count_intersections(binary_grid):
+    return np.sum(binary_grid)
