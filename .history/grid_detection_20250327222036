@@ -1,0 +1,88 @@
+import cv2
+import numpy as np
+
+def detect_grid_walls(image_path):
+    # Read the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Ensure the image is loaded
+    if img is None:
+        print(f"Error: Could not read image {image_path}")
+        return None
+    
+    # Apply more aggressive preprocessing
+    # Increase blur kernel size and use adaptive thresholding
+    blurred = cv2.GaussianBlur(img, (7, 7), 0)
+    
+    # Adaptive thresholding to handle varying lighting
+    thresh = cv2.adaptiveThreshold(
+        blurred, 
+        255, 
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+        cv2.THRESH_BINARY_INV, 
+        11,  # block size 
+        2    # constant subtracted from mean
+    )
+    
+    # Detect edges with adjusted parameters
+    edges = cv2.Canny(
+        thresh, 
+        threshold1=30,   # Lower threshold
+        threshold2=100,  # Higher threshold
+        apertureSize=3   # Sobel kernel size
+    )
+    
+    # Dilate edges to connect broken lines
+    kernel = np.ones((3,3), np.uint8)
+    dilated = cv2.dilate(edges, kernel, iterations=1)
+    
+    # Perform Hough Line Transform with more precise parameters
+    lines = cv2.HoughLinesP(
+        dilated, 
+        rho=1,              # Distance resolution of the accumulator in pixels
+        theta=np.pi/180,    # Angle resolution of the accumulator in radians
+        threshold=40,       # Minimum number of intersections to detect a line
+        minLineLength=30,   # Minimum line length
+        maxLineGap=5        # Maximum allowed gap between line segments
+    )
+    
+    # Create a color image to draw lines on
+    color_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    
+    # Draw the detected lines
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(color_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    
+    return color_img, edges, dilated
+
+# Demonstrate intermediate steps
+def process_and_show_steps(image_path):
+    # Read the original image
+    original = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Perform detection
+    color_result, edges, dilated = detect_grid_walls(image_path)
+    
+    # Create a window to display multiple images
+    combined = np.hstack([
+        color_result,  # Lines detected
+
+    ])
+    
+    # Resize for better viewing
+    scale_factor = 0.5
+    resized = cv2.resize(color_result, None, fx=scale_factor, fy=scale_factor)
+    
+    return resized
+
+# Example usage (commented out as we can't actually run it)
+
+image_paths = ['social.png']
+for path in image_paths:
+    result = process_and_show_steps(path)
+    cv2.imshow(f'Grid Detection Steps - {path}', result)
+    cv2.waitKey(0)
+
+cv2.destroyAllWindows()

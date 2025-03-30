@@ -1,0 +1,48 @@
+import cv2
+import numpy as np
+
+def detect_grid_walls(image_path):
+    # Read the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    
+    # Ensure the image is loaded
+    if img is None:
+        print(f"Error: Could not read image {image_path}")
+        return None
+    
+    # Apply Gaussian blur to reduce noise
+    blurred = cv2.GaussianBlur(img, (5, 5), 0)
+    
+    # Detect edges using Canny edge detection
+    edges = cv2.Canny(blurred, 50, 150)
+    
+    # Perform Hough Line Transform
+    lines = cv2.HoughLinesP(
+        edges, 
+        rho=1,              # Distance resolution of the accumulator in pixels
+        theta=np.pi/180,    # Angle resolution of the accumulator in radians
+        threshold=50,       # Minimum number of intersections to detect a line
+        minLineLength=50,   # Minimum line length
+        maxLineGap=10       # Maximum allowed gap between line segments
+    )
+    
+    # Create a color image to draw lines on
+    color_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    
+    # Draw the detected lines
+    if lines is not None:
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            cv2.line(color_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+    
+    return color_img
+
+# Example usage
+image_paths = [, 'image2.jpg']
+for path in image_paths:
+    result = detect_grid_walls(path)
+    if result is not None:
+        cv2.imshow(f'Grid Walls - {path}', result)
+        cv2.waitKey(0)
+
+cv2.destroyAllWindows()
