@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import os
 
 def detect_grid_walls(image_path):
     # Read the image
@@ -10,23 +11,24 @@ def detect_grid_walls(image_path):
         print(f"Error: Could not read image {image_path}")
         return None
     
-    # Apply more aggressive preprocessing
+    # Apply preprocessing
     # Increase blur kernel size and use adaptive thresholding
-    blurred = cv2.GaussianBlur(img, (7, 7), 0)
+    blurred_img = cv2.GaussianBlur(img, (7, 7), 0)
     
     # Adaptive thresholding to handle varying lighting
-    thresh = cv2.adaptiveThreshold(
-        blurred, 
+    thresh_img = cv2.adaptiveThreshold(
+        blurred_img, 
         255, 
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
         cv2.THRESH_BINARY_INV, 
         11,  
         2    
     )
+
     
     # Detect edges with adjusted parameters
     edges = cv2.Canny(
-        thresh, 
+        thresh_img, 
         threshold1=30,   # Lower threshold
         threshold2=100,  # Higher threshold
         apertureSize=3   # Sobel kernel size
@@ -36,7 +38,7 @@ def detect_grid_walls(image_path):
     kernel = np.ones((3,3), np.uint8)
     dilated = cv2.dilate(edges, kernel, iterations=1)
     
-    # Perform Hough Line Transform with more precise parameters
+    # Perform Hough Line Transform
     lines = cv2.HoughLinesP(
         dilated, 
         rho=1,              # Distance resolution of the accumulator in pixels
@@ -47,15 +49,15 @@ def detect_grid_walls(image_path):
     )
     
     # Create a color image to draw lines on
-    color_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    grid_lines = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     
     # Draw the detected lines
     if lines is not None:
         for line in lines:
             x1, y1, x2, y2 = line[0]
-            cv2.line(color_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.line(grid_lines, (x1, y1), (x2, y2), (0, 255, 0), 2)
     
-    return color_img, edges, dilated
+    return  grid_lines
 
 # Demonstrate intermediate steps
 def process_and_show_steps(image_path):
@@ -70,8 +72,6 @@ def process_and_show_steps(image_path):
     resized = cv2.resize(color_result, None, fx=scale_factor, fy=scale_factor)
     
     return resized
-
-# Example usage (commented out as we can't actually run it)
 
 image_paths = ['social.png', 'testlog_277_ubi-kcn-mode.png']
 for path in image_paths:
