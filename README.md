@@ -37,9 +37,6 @@ Include an example image or visualization here to demonstrate detection results.
 ```python cell_identifier.py --image sample_images/cell_sample_01.png```
 
 # Future Improvements
-
-    Integration with machine learning models for classification
-
-    Advanced segmentation for overlapping or clustered cells
+    Lighting Balance
 
     GUI development for non-technical users
